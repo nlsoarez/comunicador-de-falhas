@@ -49,6 +49,23 @@ body {
 
 .botoes-acao { display: flex; gap: 10px; }
 
+.status-conexao,
+.usuario-atual {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    background: #f3f4f6;
+}
+
+.status-conexao i { font-size: 8px; }
+.status-online { color: #166534; background: #dcfce7; }
+.status-offline { color: #991b1b; background: #fee2e2; }
+.status-carregando { color: #854d0e; background: #fef9c3; }
+.usuario-atual { color: var(--text-color); max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+
 .btn-acao {
     background: var(--bg-body);
     border: none;
@@ -360,10 +377,17 @@ body {
 
 .modal-content input { width: 100%; padding: 12px; margin: 12px 0; border: 1px solid #ddd; border-radius: 12px; }
 .modal-content button { margin-top: 12px; padding: 10px 20px; border: none; border-radius: 12px; cursor: pointer; }
+.login-ajuda { color: var(--text-light); font-size: 12px; margin-bottom: 6px; }
 
 .modal-relatorio { max-width: 500px; width: 90%; }
 .modal-relatorio h3 { color: var(--primary-color); margin-bottom: 15px; }
 .modal-relatorio .contagem { font-size: 48px; font-weight: bold; color: var(--primary-color); margin: 20px 0; }
+.relatorio-resumo { margin-top: 20px; text-align: left; max-height: 260px; overflow: auto; }
+.relatorio-resumo table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.relatorio-resumo th, .relatorio-resumo td { padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+.relatorio-resumo th { color: var(--primary-dark); background: var(--secondary-color); position: sticky; top: 0; }
+.estado-vazio { color: var(--text-light); text-align: center; padding: 18px; }
+.carregando { opacity: .65; pointer-events: none; }
 
 .filtros-container { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end; }
 .filtro-group { flex: 1; min-width: 130px; }
@@ -440,7 +464,7 @@ body {
     .tabs-container { flex-direction: column; align-items: flex-start; }
     .data-hora-editable { align-self: flex-end; }
     .header-moderno { flex-direction: column; text-align: center; }
-    .botoes-acao { justify-content: center; }
+    .botoes-acao { justify-content: center; flex-wrap: wrap; }
     .filtros-container { flex-direction: column; }
     .filtro-group { width: 100%; }
     .filtros-linha-botoes { flex-direction: column; }

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Portal de Relatórios - Sistema de Falhas</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐞</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -15,11 +16,12 @@
                 Portal de Relatórios de Falhas
             </h1>
             <div class="botoes-acao">
-                <button id="btn-modo-visualizador" class="btn-acao" title="Modo visualizador">
-                    <i class="fas fa-eye"></i>
-                </button>
-                <button id="btn-modo-adm" class="btn-acao" title="Modo administrador">
-                    <i class="fas fa-cog"></i>
+                <span id="status-conexao" class="status-conexao status-offline">
+                    <i class="fas fa-circle"></i> Servidor não configurado
+                </span>
+                <span id="usuario-atual" class="usuario-atual oculto"></span>
+                <button id="btn-entrar" class="btn-acao" title="Entrar no sistema">
+                    <i class="fas fa-sign-in-alt"></i> Entrar
                 </button>
                 <button id="btn-logout" class="btn-acao oculto" title="Sair">
                     <i class="fas fa-sign-out-alt"></i>
@@ -240,12 +242,13 @@
                                 <th>Cluster</th>
                                 <th>Incidente</th>
                                 <th>Task | Rec | Sistema</th>
+                                <th>Reportado por</th>
                                 <th id="coluna-acao-historico" class="oculto">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="corpo-historico">
                             <tr>
-                                <td colspan="5" style="text-align: center;">Nenhum registro encontrado</td>
+                                <td colspan="6" style="text-align: center;">Nenhum registro encontrado</td>
                             </tr>
                         </tbody>
                     </table>
@@ -261,10 +264,17 @@
     <div id="modal-login" class="modal">
         <div class="modal-content">
             <i class="fas fa-lock" style="font-size: 40px; color: var(--primary-color);"></i>
-            <h3 style="margin: 15px 0; font-size: 18px;">Acesso administrador</h3>
-            <input type="text" id="login-usuario" placeholder="Usuário">
-            <input type="password" id="login-senha" placeholder="Senha">
+            <h3 style="margin: 15px 0; font-size: 18px;">Entrar no portal</h3>
+            <p class="login-ajuda">Use a conta criada pelo administrador no servidor.</p>
+            <div id="campos-cadastro" class="oculto">
+                <input type="text" id="cadastro-nome" placeholder="Nome completo" autocomplete="name" maxlength="120">
+                <p class="login-ajuda">Primeiro acesso disponível apenas para e-mail @claro.com.br.</p>
+            </div>
+            <input type="email" id="login-usuario" placeholder="E-mail" autocomplete="username">
+            <input type="password" id="login-senha" placeholder="Senha" minlength="8" autocomplete="current-password">
             <button id="btn-login" style="background: var(--primary-color); color: white; border-radius: 12px;">Entrar</button>
+            <button id="btn-mostrar-cadastro" class="btn-secundario">Primeiro acesso</button>
+            <button id="btn-cadastrar" class="btn-primario oculto">Criar conta</button>
             <button id="btn-fechar-modal" style="background: #e0e0e0; border-radius: 12px;">Cancelar</button>
         </div>
     </div>
@@ -278,11 +288,15 @@
                 <p id="periodo-datas"></p>
                 <div class="contagem" id="contagem-falhas">0</div>
                 <p>falhas registradas neste período</p>
+                <div id="relatorio-resumo" class="relatorio-resumo"></div>
             </div>
             <button id="btn-fechar-relatorio" style="background: var(--primary-color); color: white; border-radius: 12px; margin-top: 20px;">Fechar</button>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0/dist/umd/supabase.min.js" crossorigin="anonymous" defer></script>
+    <script src="js/config.js" defer></script>
+    <script src="js/data-service.js" defer></script>
     <script src="js/app.js" defer></script>
 </body>
 </html>
