@@ -251,7 +251,7 @@ function atualizarTabelaChamados() {
             date: `${dataEncerramento.getFullYear()}-${String(dataEncerramento.getMonth() + 1).padStart(2, '0')}-${String(dataEncerramento.getDate()).padStart(2, '0')}`,
             time: `${String(dataEncerramento.getHours()).padStart(2, '0')}:${String(dataEncerramento.getMinutes()).padStart(2, '0')}`
         } : encStringParaInputs(chamado.dataEncerramento);
-        const podeEncerrar = usuarioEhAdmin() || chamado.reporterId === sessaoAtual?.user?.id;
+        const podeEncerrar = usuarioEhAdmin();
 
         return `
         <tr>
@@ -322,7 +322,7 @@ function renderizarResumoRelatorio(falhas) {
     const resumo = document.getElementById('relatorio-resumo');
     resumo.innerHTML = linhas.length ? `
         <table>
-            <thead><tr><th>Usuário</th><th>Registros</th></tr></thead>
+            <thead><tr><th>Perfil</th><th>Registros</th></tr></thead>
             <tbody>${linhas.map(([nome, total]) => `<tr><td>${escaparHtml(nome)}</td><td>${total}</td></tr>`).join('')}</tbody>
         </table>` : '<p class="estado-vazio">Nenhuma falha no período.</p>';
 }
@@ -751,34 +751,6 @@ document.getElementById('botao-registrar-chamado').addEventListener('click', asy
 const modal = document.getElementById('modal-login');
 document.getElementById('btn-entrar').addEventListener('click', () => modal.style.display = 'flex');
 document.getElementById('btn-fechar-modal').addEventListener('click', () => modal.style.display = 'none');
-document.getElementById('btn-mostrar-cadastro').addEventListener('click', function() {
-    document.getElementById('campos-cadastro').classList.remove('oculto');
-    document.getElementById('btn-cadastrar').classList.remove('oculto');
-    document.getElementById('btn-login').classList.add('oculto');
-    this.classList.add('oculto');
-    document.getElementById('login-senha').autocomplete = 'new-password';
-});
-document.getElementById('btn-cadastrar').addEventListener('click', async function() {
-    const nome = document.getElementById('cadastro-nome').value.trim();
-    const email = document.getElementById('login-usuario').value.trim();
-    const senha = document.getElementById('login-senha').value;
-    this.disabled = true;
-    try {
-        const data = await DataService.cadastrar(nome, email, senha);
-        document.getElementById('login-senha').value = '';
-        if (data.session) {
-            modal.style.display = 'none';
-            await aplicarSessao(data.session);
-            mostrarToast('Conta criada e sessão iniciada.');
-        } else {
-            mostrarToast('Conta criada. Confirme o e-mail recebido antes de entrar.');
-        }
-    } catch (error) {
-        mostrarToast(error.message);
-    } finally {
-        this.disabled = false;
-    }
-});
 document.getElementById('btn-login').addEventListener('click', async function() {
     const usuario = document.getElementById('login-usuario').value.trim();
     const senha = document.getElementById('login-senha').value;
@@ -829,7 +801,7 @@ async function aplicarSessao(sessao) {
     document.getElementById('btn-logout').classList.toggle('oculto', !usuarioLogado);
     usuarioAtual.classList.toggle('oculto', !usuarioLogado);
     usuarioAtual.textContent = usuarioLogado
-        ? `${sessao.user.email}${usuarioEhAdmin() ? ' · ADMIN' : ''}`
+        ? (usuarioEhAdmin() ? `${sessao.user.email} · ADMIN` : 'EQUIPE MADRUGADA')
         : '';
 
     if (usuarioLogado) {
@@ -883,6 +855,15 @@ function inicializarDataHora() {
 }
 
 async function inicializarAplicacao() {
+    const parametrosErro = new URLSearchParams(globalThis.location.hash.replace(/^#/, ''));
+    if (parametrosErro.has('error')) {
+        const codigo = parametrosErro.get('error_code');
+        const mensagem = codigo === 'otp_expired'
+            ? 'Este link de confirmação expirou. Se sua conta já foi criada, entre com e-mail e senha.'
+            : 'Não foi possível validar o link de acesso. Entre com e-mail e senha.';
+        globalThis.history.replaceState(null, '', `${globalThis.location.pathname}${globalThis.location.search}`);
+        mostrarToast(mensagem);
+    }
     inicializarDataHora();
     atualizarTabelaHistorico();
     atualizarTabelaChamados();

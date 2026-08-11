@@ -1,6 +1,6 @@
 # Comunicador de falhas
 
-Portal estático integrado ao Supabase para centralizar falhas e chamados reportados por vários usuários. Os dados não dependem mais do `localStorage` do navegador: o histórico e os relatórios consultam a mesma base remota e identificam o usuário responsável por cada inserção.
+Portal estático integrado ao Supabase para centralizar falhas e chamados. Os dados não dependem do `localStorage`: o histórico e os relatórios consultam a mesma base remota, identificam administradores e preservam o anonimato das inserções da Equipe Madrugada.
 
 ## Arquitetura
 
@@ -16,9 +16,11 @@ Portal estático integrado ao Supabase para centralizar falhas e chamados report
 1. Crie ou selecione um projeto Supabase.
 2. Aplique a migration em `supabase/migrations`.
 3. Copie a URL do projeto e uma **publishable key** ativa para `js/config.js`.
-4. No primeiro acesso, usuários `@claro.com.br` podem criar uma conta e confirmar o e-mail. A autorização é registrada em `failure_portal_memberships`, não em metadados editáveis do usuário.
-5. Após a confirmação do e-mail, `nelson.soares@claro.com.br` e `kelly.lira@claro.com.br` recebem o papel de administrador; demais contas recebem `reporter`. Alterações de papel devem ser feitas apenas no banco por um administrador.
-6. No GitHub, configure **Settings > Pages > Deploy from a branch**, usando `main` e a pasta `/ (root)`. Esse modo hospeda o site gratuitamente sem depender de runners do GitHub Actions.
+4. O cadastro público foi desativado. As contas são provisionadas no servidor e a autorização é registrada em `failure_portal_memberships`, nunca em metadados editáveis do usuário.
+5. Existem apenas dois papéis: `admin` e `team`. Kelly, Marley e Nelson pertencem a `admin`; a conta compartilhada Madrugada pertence a `team`. Os e-mails de Marley e Madrugada precisam ser incluídos em `failure_portal_private.allowed_accounts` antes do provisionamento.
+6. Contas administrativas devem ser criadas pela Admin API do Supabase com `email_confirm: true`; não desligue a confirmação global, pois o projeto também atende o Férias Inteligentes.
+7. O identificador real do autor permanece apenas no banco para auditoria. Consultas do navegador recebem somente o nome do administrador ou `EQUIPE MADRUGADA (ANÔNIMO)`.
+8. No GitHub, configure **Settings > Pages > Deploy from a branch**, usando `main` e a pasta `/ (root)`. Esse modo hospeda o site gratuitamente sem depender de runners do GitHub Actions.
 
 Exemplo de configuração pública:
 

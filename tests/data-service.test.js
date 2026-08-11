@@ -24,7 +24,7 @@ test('recusa inicialização sem URL e publishable key', () => {
     assert.throws(() => service.paraIso('invalida', '10:00'), /Data ou hora inválida/);
 });
 
-test('carrega falhas e chamados centralizados com identificação do usuário', async () => {
+test('carrega falhas e chamados sem expor o identificador do autor', async () => {
     const rows = {
         failure_portal_reports: [{
             id: 'f1',
@@ -38,8 +38,7 @@ test('carrega falhas e chamados centralizados com identificação do usuário', 
             attachment_name: 'imagem.png',
             attachment_mime: 'image/png',
             attachment_size: 1024,
-            reporter_id: 'u1',
-            reporter: { display_name: 'OPERADOR 1' }
+            reporter_name: 'EQUIPE MADRUGADA (ANÔNIMO)'
         }],
         failure_portal_tickets: [{
             id: 't1',
@@ -47,8 +46,7 @@ test('carrega falhas e chamados centralizados com identificação do usuário', 
             closed_at: null,
             ticket_number: 'CH-1',
             reason: 'SIR',
-            reporter_id: 'u2',
-            reporter: { display_name: 'OPERADOR 2' }
+            reporter_name: 'Kelly Lira'
         }]
     };
     const client = {
@@ -72,8 +70,9 @@ test('carrega falhas e chamados centralizados com identificação do usuário', 
     assert.equal(service.configurado(), true);
     assert.equal((await service.sessaoAtual()).user.id, 'u1');
     const dados = await service.listarTudo();
-    assert.equal(dados.falhas[0].reporterName, 'OPERADOR 1');
-    assert.equal(dados.chamados[0].reporterName, 'OPERADOR 2');
+    assert.equal(dados.falhas[0].reporterName, 'EQUIPE MADRUGADA (ANÔNIMO)');
+    assert.equal(dados.chamados[0].reporterName, 'Kelly Lira');
+    assert.equal(Object.hasOwn(dados.falhas[0], 'reporterId'), false);
     assert.equal(dados.falhas[0].incidente, 'N/A');
     assert.equal(dados.falhas[0].anexoPath, 'u1/f1/imagem.png');
     assert.equal(dados.falhas[0].anexoNome, 'imagem.png');
@@ -110,8 +109,7 @@ test('envia imagem privada e vincula o caminho ao registro', async () => {
                                 single: async () => ({
                                     data: {
                                         ...value,
-                                        reporter_id: 'u1',
-                                        reporter: { display_name: 'OPERADOR 1' }
+                                        reporter_name: 'EQUIPE MADRUGADA (ANÔNIMO)'
                                     },
                                     error: null
                                 })
@@ -182,31 +180,7 @@ test('propaga erro de leitura do servidor com contexto', async () => {
     await assert.rejects(service.listarTudo(), /Falha ao carregar os registros: RLS bloqueou/);
 });
 
-test('cadastro aceita somente domínio corporativo e marca a aplicação correta', async () => {
-    let payload;
-    const client = {
-        auth: {
-            signUp: async value => {
-                payload = value;
-                return { data: { user: { id: 'u1' }, session: null }, error: null };
-            }
-        }
-    };
-    const service = carregarServico({
-        config: {
-            supabaseUrl: 'https://projeto.supabase.co',
-            supabasePublishableKey: `sb_publishable_${'z'.repeat(30)}`,
-            allowedEmailDomain: 'claro.com.br'
-        },
-        client
-    });
-
-    await assert.rejects(
-        service.cadastrar('Usuário Teste', 'teste@example.com', 'senha-segura'),
-        /@claro\.com\.br/
-    );
-    await service.cadastrar('Usuário Teste', 'TESTE@CLARO.COM.BR', 'senha-segura');
-    assert.equal(payload.email, 'teste@claro.com.br');
-    assert.equal(payload.options.data.application, 'failure-portal');
-    assert.equal(payload.options.emailRedirectTo, 'https://example.test/comunicador/');
+test('não expõe cadastro público no serviço do navegador', () => {
+    const service = carregarServico();
+    assert.equal(service.cadastrar, undefined);
 });

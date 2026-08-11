@@ -61,11 +61,6 @@
         return paraIso(`${match[3]}-${match[2]}-${match[1]}`, `${match[4]}:${match[5]}`);
     }
 
-    function nomeDoPerfil(relacao, fallback) {
-        const perfil = Array.isArray(relacao) ? relacao[0] : relacao;
-        return perfil?.display_name || fallback || 'USUÁRIO';
-    }
-
     function mapearFalha(row) {
         return {
             id: row.id,
@@ -76,8 +71,7 @@
             incidente: row.incident || 'N/A',
             taskOuSistema: row.task_or_system || 'N/A',
             descricao: row.description,
-            reporterId: row.reporter_id,
-            reporterName: nomeDoPerfil(row.reporter, row.reporter_name),
+            reporterName: row.reporter_name || 'EQUIPE MADRUGADA (ANÔNIMO)',
             anexoPath: row.attachment_path || null,
             anexoNome: row.attachment_name || null,
             anexoMime: row.attachment_mime || null,
@@ -94,13 +88,12 @@
             motivo: row.reason,
             dataEncerramento: formatarDataHora(row.closed_at),
             encerramentoIso: row.closed_at,
-            reporterId: row.reporter_id,
-            reporterName: nomeDoPerfil(row.reporter, row.reporter_name)
+            reporterName: row.reporter_name || 'EQUIPE MADRUGADA (ANÔNIMO)'
         };
     }
 
-    const failureSelect = 'id,occurred_at,title,cluster,incident,task_or_system,description,attachment_path,attachment_name,attachment_mime,attachment_size,reporter_id,reporter:failure_portal_profiles!failure_portal_reports_reporter_id_fkey(display_name)';
-    const ticketSelect = 'id,opened_at,closed_at,ticket_number,reason,reporter_id,reporter:failure_portal_profiles!failure_portal_tickets_reporter_id_fkey(display_name)';
+    const failureSelect = 'id,occurred_at,title,cluster,incident,task_or_system,description,attachment_path,attachment_name,attachment_mime,attachment_size,reporter_name';
+    const ticketSelect = 'id,opened_at,closed_at,ticket_number,reason,reporter_name';
 
     async function sessaoAtual() {
         if (!configurado()) return null;
@@ -113,34 +106,6 @@
         const { data, error } = await obterClient().auth.signInWithPassword({ email, password: senha });
         propagarErro(error, 'Não foi possível entrar');
         return data.session;
-    }
-
-    async function cadastrar(displayName, email, senha) {
-        const dominio = String(config.allowedEmailDomain || '').toLowerCase();
-        const emailNormalizado = String(email || '').trim().toLowerCase();
-        if (!dominio || !emailNormalizado.endsWith(`@${dominio}`)) {
-            throw new Error(`Use um e-mail corporativo @${dominio || 'domínio autorizado'}.`);
-        }
-        if (String(displayName || '').trim().length < 3) {
-            throw new Error('Informe seu nome com pelo menos 3 caracteres.');
-        }
-        if (String(senha || '').length < 8) {
-            throw new Error('A senha precisa ter pelo menos 8 caracteres.');
-        }
-        const emailRedirectTo = global.location ? `${global.location.origin}${global.location.pathname}` : undefined;
-        const { data, error } = await obterClient().auth.signUp({
-            email: emailNormalizado,
-            password: senha,
-            options: {
-                data: {
-                    display_name: String(displayName).trim().slice(0, 120),
-                    application: 'failure-portal'
-                },
-                emailRedirectTo
-            }
-        });
-        propagarErro(error, 'Não foi possível criar a conta');
-        return data;
     }
 
     async function obterAcesso() {
@@ -324,7 +289,6 @@
         configurado,
         sessaoAtual,
         entrar,
-        cadastrar,
         obterAcesso,
         sair,
         observarAuth,
