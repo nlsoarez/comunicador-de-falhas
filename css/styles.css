@@ -32,6 +32,24 @@ body {
 
 .container-moderno { max-width: 900px; width: 100%; margin: 0 auto; }
 
+.painel-perfil {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: -10px 0 20px;
+    padding: 12px 16px;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    font-size: 12px;
+}
+
+.painel-perfil > i { font-size: 20px; }
+.painel-perfil div { display: flex; flex-direction: column; gap: 2px; }
+.painel-perfil strong { font-size: 13px; }
+.painel-perfil span { color: inherit; opacity: .85; }
+.painel-perfil.perfil-admin { color: #991b1b; background: #fee2e2; border-color: #fecaca; }
+.painel-perfil.perfil-equipe { color: #1e3a8a; background: #dbeafe; border-color: #bfdbfe; }
+
 .header-moderno {
     display: flex;
     justify-content: space-between;
@@ -374,6 +392,20 @@ body {
     gap: 6px;
     white-space: nowrap;
 }
+
+.status-chamado {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-chamado.status-aberto { color: #854d0e; background: #fef9c3; }
+.status-chamado.status-encerrado { color: #166534; background: #dcfce7; }
 
 .toast {
     position: fixed;

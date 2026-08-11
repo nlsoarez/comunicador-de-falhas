@@ -29,6 +29,14 @@
             </div>
         </div>
 
+        <div id="painel-perfil" class="painel-perfil oculto" aria-live="polite">
+            <i id="painel-perfil-icone" class="fas fa-users" aria-hidden="true"></i>
+            <div>
+                <strong id="painel-perfil-titulo"></strong>
+                <span id="painel-perfil-descricao"></span>
+            </div>
+        </div>
+
         <div class="card-moderno">
             <div class="tabs-container">
                 <div class="tabs">
@@ -177,7 +185,7 @@
                                     <th>Chamado aberto</th>
                                     <th>Número do chamado</th>
                                     <th>Motivo</th>
-                                    <th>Chamado encerrado</th>
+                                    <th id="coluna-status-chamado">Status do chamado</th>
                                     <th id="coluna-acao-chamados" class="oculto">Ações</th>
                                 </tr>
                             </thead>
@@ -221,7 +229,7 @@
                         <button id="limpar-filtros" class="btn-secundario btn-icon-only" title="Limpar filtros">
                             <i class="fas fa-eraser"></i>
                         </button>
-                        <button id="btn-relatorio" class="btn-secundario btn-icon-only" title="Ver relatório em gráfico">
+                        <button id="btn-relatorio" class="btn-secundario btn-icon-only admin-only oculto" title="Ver relatório administrativo">
                             <i class="fas fa-chart-bar"></i>
                         </button>
                     </div>

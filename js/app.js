@@ -23,6 +23,34 @@ function usuarioEhAdmin() {
     return portalRole === 'admin';
 }
 
+function atualizarVisaoPorPerfil() {
+    const painel = document.getElementById('painel-perfil');
+    const titulo = document.getElementById('painel-perfil-titulo');
+    const descricao = document.getElementById('painel-perfil-descricao');
+    const icone = document.getElementById('painel-perfil-icone');
+    const colunaStatus = document.getElementById('coluna-status-chamado');
+
+    painel.classList.toggle('oculto', !usuarioLogado);
+    painel.classList.toggle('perfil-admin', usuarioLogado && usuarioEhAdmin());
+    painel.classList.toggle('perfil-equipe', usuarioLogado && !usuarioEhAdmin());
+    document.querySelectorAll('.admin-only').forEach(elemento => {
+        elemento.classList.toggle('oculto', !usuarioLogado || !usuarioEhAdmin());
+    });
+
+    if (!usuarioLogado) return;
+    if (usuarioEhAdmin()) {
+        titulo.textContent = 'Modo administrador';
+        descricao.textContent = 'Relatórios, encerramento de chamados e exclusão de informações habilitados.';
+        icone.className = 'fas fa-user-shield';
+        colunaStatus.textContent = 'Encerramento administrativo';
+    } else {
+        titulo.textContent = 'Modo Equipe Madrugada';
+        descricao.textContent = 'Você pode registrar e consultar. As inserções da equipe são anônimas.';
+        icone.className = 'fas fa-users';
+        colunaStatus.textContent = 'Status do chamado';
+    }
+}
+
 function renderizarCelulaAnexo(falha) {
     if (!falha.anexoPath) return '<span class="sem-anexo">—</span>';
     return `
@@ -153,6 +181,10 @@ function atualizarTabelaHistorico() {
 }
 
 async function deletarRegistro(id) {
+    if (!usuarioEhAdmin()) {
+        mostrarToast('Somente administradores podem excluir registros.');
+        return;
+    }
     if (confirm('Tem certeza que deseja excluir este registro?')) {
         try {
             const falha = historicoFalhas.find(f => f.id === id);
@@ -209,6 +241,10 @@ function encStringParaInputs(str) {
  * Chamado automaticamente no onchange dos inputs.
  */
 async function salvarEncerramento(id) {
+    if (!usuarioEhAdmin()) {
+        mostrarToast('Somente administradores podem encerrar chamados.');
+        return;
+    }
     const dataInput = document.getElementById(`enc-data-${id}`);
     const horaInput = document.getElementById(`enc-hora-${id}`);
     if (!dataInput || !horaInput) return;
@@ -251,34 +287,33 @@ function atualizarTabelaChamados() {
             date: `${dataEncerramento.getFullYear()}-${String(dataEncerramento.getMonth() + 1).padStart(2, '0')}-${String(dataEncerramento.getDate()).padStart(2, '0')}`,
             time: `${String(dataEncerramento.getHours()).padStart(2, '0')}:${String(dataEncerramento.getMinutes()).padStart(2, '0')}`
         } : encStringParaInputs(chamado.dataEncerramento);
-        const podeEncerrar = usuarioEhAdmin();
+        const controleEncerramento = usuarioEhAdmin() ? `
+            <div class="enc-wrapper">
+                <input type="date"
+                       id="enc-data-${chamado.id}"
+                       class="enc-data-input"
+                       value="${enc.date}"
+                       onchange="salvarEncerramento('${chamado.id}')">
+                <input type="time"
+                       id="enc-hora-${chamado.id}"
+                       class="enc-hora-input"
+                       value="${enc.time}"
+                       onchange="salvarEncerramento('${chamado.id}')">
+                <button class="btn-grafico-icone"
+                        onclick="verRelatorioChamado('${chamado.id}')"
+                        title="Ver relatório">
+                    <i class="fas fa-chart-bar"></i>
+                </button>
+            </div>` : chamado.encerramentoIso
+                ? `<span class="status-chamado status-encerrado"><i class="fas fa-check-circle"></i> Encerrado em ${escaparHtml(chamado.dataEncerramento)}</span>`
+                : '<span class="status-chamado status-aberto"><i class="fas fa-clock"></i> Em aberto</span>';
 
         return `
         <tr>
             <td>${escaparHtml(chamado.dataHora)}</td>
             <td>${escaparHtml(chamado.numero)}</td>
             <td>${escaparHtml(chamado.motivo)}<br><small>${escaparHtml(chamado.reporterName)}</small></td>
-            <td>
-                <div class="enc-wrapper">
-                    <input type="date"
-                           id="enc-data-${chamado.id}"
-                           class="enc-data-input"
-                           value="${enc.date}"
-                           ${podeEncerrar ? '' : 'disabled'}
-                           onchange="salvarEncerramento('${chamado.id}')">
-                    <input type="time"
-                           id="enc-hora-${chamado.id}"
-                           class="enc-hora-input"
-                           value="${enc.time}"
-                           ${podeEncerrar ? '' : 'disabled'}
-                           onchange="salvarEncerramento('${chamado.id}')">
-                    <button class="btn-grafico-icone"
-                            onclick="verRelatorioChamado('${chamado.id}')"
-                            title="Ver relatório">
-                        <i class="fas fa-chart-bar"></i>
-                    </button>
-                </div>
-            </td>
+            <td>${controleEncerramento}</td>
             ${modoAtual === 'admin' ? `<td><button class="btn-secundario btn-danger" onclick="deletarChamado('${chamado.id}')" title="Excluir chamado"><i class="fas fa-trash"></i></button></td>` : ''}
         </tr>`;
     }).join('');
@@ -328,6 +363,10 @@ function renderizarResumoRelatorio(falhas) {
 }
 
 async function deletarChamado(id) {
+    if (!usuarioEhAdmin()) {
+        mostrarToast('Somente administradores podem excluir chamados.');
+        return;
+    }
     if (confirm('Tem certeza que deseja excluir este chamado?')) {
         try {
             await DataService.excluirChamado(id);
@@ -808,6 +847,7 @@ async function aplicarSessao(sessao) {
     usuarioAtual.textContent = usuarioLogado
         ? (usuarioEhAdmin() ? `${sessao.user.email} · ADMIN` : 'EQUIPE MADRUGADA')
         : '';
+    atualizarVisaoPorPerfil();
 
     if (usuarioLogado) {
         await carregarDados();
