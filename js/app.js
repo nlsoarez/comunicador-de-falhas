@@ -760,8 +760,8 @@ document.getElementById('btn-login').addEventListener('click', async function() 
         const sessao = await DataService.entrar(usuario, senha);
         modal.style.display = 'none';
         document.getElementById('login-senha').value = '';
-        await aplicarSessao(sessao);
-        mostrarToast('Sessão iniciada.');
+        const sessaoAplicada = await aplicarSessao(sessao);
+        if (sessaoAplicada) mostrarToast('Sessão iniciada.');
     } catch (error) {
         mostrarToast(error.message);
     } finally {
@@ -782,16 +782,21 @@ document.getElementById('btn-logout').addEventListener('click', async function()
 async function aplicarSessao(sessao) {
     sessaoAtual = sessao;
     portalRole = null;
+    let erroAcesso = null;
     if (sessaoAtual) {
         try {
-            portalRole = await DataService.obterAcesso();
+            portalRole = await DataService.obterAcesso(sessaoAtual.user.id);
         } catch (error) {
-            mostrarToast(error.message);
+            erroAcesso = error;
         }
         if (!portalRole) {
-            await DataService.sair();
+            try {
+                await DataService.sair();
+            } catch (error) {
+                console.error('Falha ao encerrar sessão sem acesso:', error);
+            }
             sessaoAtual = null;
-            mostrarToast('Esta conta não possui acesso ao Comunicador de Falhas.');
+            mostrarToast(erroAcesso?.message || 'Esta conta não possui acesso ao Comunicador de Falhas.');
         }
     }
     usuarioLogado = Boolean(sessaoAtual);
@@ -814,6 +819,7 @@ async function aplicarSessao(sessao) {
         atualizarFiltros();
         atualizarStatusConexao(DataService.configurado() ? 'online' : 'offline', DataService.configurado() ? 'Aguardando login' : 'Servidor não configurado');
     }
+    return usuarioLogado;
 }
 
 document.getElementById('aplicar-filtros').addEventListener('click', aplicarFiltros);

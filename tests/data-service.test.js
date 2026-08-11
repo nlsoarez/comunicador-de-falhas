@@ -184,3 +184,36 @@ test('não expõe cadastro público no serviço do navegador', () => {
     const service = carregarServico();
     assert.equal(service.cadastrar, undefined);
 });
+
+test('consulta somente o papel do usuário da sessão', async () => {
+    let filtro;
+    const client = {
+        from(table) {
+            assert.equal(table, 'failure_portal_memberships');
+            return {
+                select(columns) {
+                    assert.equal(columns, 'role');
+                    return {
+                        eq(column, value) {
+                            filtro = { column, value };
+                            return {
+                                maybeSingle: async () => ({ data: { role: 'admin' }, error: null })
+                            };
+                        }
+                    };
+                }
+            };
+        }
+    };
+    const service = carregarServico({
+        config: {
+            supabaseUrl: 'https://projeto.supabase.co',
+            supabasePublishableKey: `sb_publishable_${'a'.repeat(30)}`
+        },
+        client
+    });
+
+    assert.equal(await service.obterAcesso('usuario-nelson'), 'admin');
+    assert.deepEqual(filtro, { column: 'user_id', value: 'usuario-nelson' });
+    await assert.rejects(service.obterAcesso(), /Sessão inválida/);
+});

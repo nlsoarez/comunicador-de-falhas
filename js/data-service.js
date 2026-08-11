@@ -108,10 +108,12 @@
         return data.session;
     }
 
-    async function obterAcesso() {
+    async function obterAcesso(userId) {
+        if (!userId) throw new Error('Sessão inválida para verificar o acesso.');
         const { data, error } = await obterClient()
             .from('failure_portal_memberships')
             .select('role')
+            .eq('user_id', userId)
             .maybeSingle();
         propagarErro(error, 'Falha ao verificar o acesso ao Comunicador');
         return data?.role || null;
