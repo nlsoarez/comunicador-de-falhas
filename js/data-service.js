@@ -11,6 +11,9 @@
         'image/gif': 'gif'
     });
     const maxImageSize = 5 * 1024 * 1024;
+    const loginAliases = Object.freeze({
+        madrugada: 'madrugada@comunicador.invalid'
+    });
 
     function configurado() {
         return Boolean(
@@ -102,7 +105,9 @@
         return data.session;
     }
 
-    async function entrar(email, senha) {
+    async function entrar(identificador, senha) {
+        const loginNormalizado = String(identificador || '').trim().toLowerCase();
+        const email = loginAliases[loginNormalizado] || loginNormalizado;
         const { data, error } = await obterClient().auth.signInWithPassword({ email, password: senha });
         propagarErro(error, 'Não foi possível entrar');
         return data.session;

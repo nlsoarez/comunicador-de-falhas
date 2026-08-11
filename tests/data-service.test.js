@@ -185,6 +185,30 @@ test('não expõe cadastro público no serviço do navegador', () => {
     assert.equal(service.cadastrar, undefined);
 });
 
+test('converte o usuário compartilhado madrugada para a identidade técnica', async () => {
+    let credenciais;
+    const client = {
+        auth: {
+            signInWithPassword: async value => {
+                credenciais = value;
+                return { data: { session: { user: { id: 'equipe-madrugada' } } }, error: null };
+            }
+        }
+    };
+    const service = carregarServico({
+        config: {
+            supabaseUrl: 'https://projeto.supabase.co',
+            supabasePublishableKey: `sb_publishable_${'m'.repeat(30)}`
+        },
+        client
+    });
+
+    const sessao = await service.entrar('  MADRUGADA  ', 'senha-compartilhada');
+    assert.equal(sessao.user.id, 'equipe-madrugada');
+    assert.equal(credenciais.email, 'madrugada@comunicador.invalid');
+    assert.equal(credenciais.password, 'senha-compartilhada');
+});
+
 test('consulta somente o papel do usuário da sessão', async () => {
     let filtro;
     const client = {

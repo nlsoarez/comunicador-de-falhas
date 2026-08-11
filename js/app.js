@@ -793,7 +793,7 @@ document.getElementById('btn-fechar-modal').addEventListener('click', () => moda
 document.getElementById('btn-login').addEventListener('click', async function() {
     const usuario = document.getElementById('login-usuario').value.trim();
     const senha = document.getElementById('login-senha').value;
-    if (!usuario || !senha) { mostrarToast('Informe e-mail e senha.'); return; }
+    if (!usuario || !senha) { mostrarToast('Informe usuário ou e-mail e senha.'); return; }
     this.disabled = true;
     try {
         const sessao = await DataService.entrar(usuario, senha);
