@@ -17,7 +17,7 @@ Portal estático integrado ao Supabase para centralizar falhas e chamados report
 3. Copie a URL do projeto e uma **publishable key** ativa para `js/config.js`.
 4. No primeiro acesso, usuários `@claro.com.br` podem criar uma conta e confirmar o e-mail. A autorização é registrada em `failure_portal_memberships`, não em metadados editáveis do usuário.
 5. O e-mail `nelson.soares@claro.com.br` recebe o papel inicial de administrador; demais contas recebem `reporter`. Alterações de papel devem ser feitas apenas no banco por um administrador.
-6. Publique os arquivos estáticos.
+6. No GitHub, configure **Settings > Pages > Deploy from a branch**, usando `main` e a pasta `/ (root)`. Esse modo hospeda o site gratuitamente sem depender de runners do GitHub Actions.
 
 Exemplo de configuração pública:
 
