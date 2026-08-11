@@ -7,10 +7,12 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '..', 'js', 'data-service.js'), 'utf8');
 
 function carregarServico({ config = {}, client = {} } = {}) {
+    let uuidCounter = 0;
     const window = {
         APP_CONFIG: config,
         location: { origin: 'https://example.test', pathname: '/comunicador/' },
-        supabase: { createClient: () => client }
+        supabase: { createClient: () => client },
+        crypto: { randomUUID: () => `uuid-${++uuidCounter}` }
     };
     vm.runInNewContext(source, { window, URL, Intl, Date, Error, Object, Array, String, Boolean, Promise });
     return window.DataService;
@@ -32,6 +34,10 @@ test('carrega falhas e chamados centralizados com identificação do usuário', 
             incident: null,
             task_or_system: 'Sistema: SIR',
             description: 'TESTE',
+            attachment_path: 'u1/f1/imagem.png',
+            attachment_name: 'imagem.png',
+            attachment_mime: 'image/png',
+            attachment_size: 1024,
             reporter_id: 'u1',
             reporter: { display_name: 'OPERADOR 1' }
         }],
@@ -69,6 +75,90 @@ test('carrega falhas e chamados centralizados com identificação do usuário', 
     assert.equal(dados.falhas[0].reporterName, 'OPERADOR 1');
     assert.equal(dados.chamados[0].reporterName, 'OPERADOR 2');
     assert.equal(dados.falhas[0].incidente, 'N/A');
+    assert.equal(dados.falhas[0].anexoPath, 'u1/f1/imagem.png');
+    assert.equal(dados.falhas[0].anexoNome, 'imagem.png');
+});
+
+test('envia imagem privada e vincula o caminho ao registro', async () => {
+    let upload;
+    let payload;
+    const client = {
+        auth: {
+            getUser: async () => ({ data: { user: { id: 'u1' } }, error: null })
+        },
+        storage: {
+            from(bucket) {
+                assert.equal(bucket, 'failure-portal-images');
+                return {
+                    upload: async (path, file, options) => {
+                        upload = { path, file, options };
+                        return { data: { path }, error: null };
+                    },
+                    remove: async () => ({ data: [], error: null }),
+                    createSignedUrl: async path => ({ data: { signedUrl: `https://signed.test/${path}` }, error: null })
+                };
+            }
+        },
+        from(table) {
+            assert.equal(table, 'failure_portal_reports');
+            return {
+                insert(value) {
+                    payload = value;
+                    return {
+                        select() {
+                            return {
+                                single: async () => ({
+                                    data: {
+                                        ...value,
+                                        reporter_id: 'u1',
+                                        reporter: { display_name: 'OPERADOR 1' }
+                                    },
+                                    error: null
+                                })
+                            };
+                        }
+                    };
+                }
+            };
+        }
+    };
+    const service = carregarServico({
+        config: {
+            supabaseUrl: 'https://projeto.supabase.co',
+            supabasePublishableKey: `sb_publishable_${'i'.repeat(30)}`
+        },
+        client
+    });
+    const imagem = { name: 'evidencia.png', type: 'image/png', size: 1024 };
+    const falha = await service.criarFalha({
+        occurredAt: '2026-08-11T12:00:00.000Z',
+        titulo: 'FALHA',
+        cluster: 'RJ',
+        incidente: 'N/A',
+        taskOuSistema: 'N/A',
+        descricao: 'TESTE'
+    }, imagem);
+
+    assert.equal(upload.path, 'u1/uuid-1/uuid-2.png');
+    assert.equal(upload.file, imagem);
+    assert.equal(upload.options.upsert, false);
+    assert.equal(payload.id, 'uuid-1');
+    assert.equal(payload.attachment_path, upload.path);
+    assert.equal(payload.attachment_name, 'evidencia.png');
+    assert.equal(falha.anexoMime, 'image/png');
+    assert.equal(await service.criarUrlAnexo(upload.path), `https://signed.test/${upload.path}`);
+});
+
+test('recusa anexos fora dos formatos e do limite permitido', () => {
+    const service = carregarServico();
+    assert.throws(
+        () => service.validarImagem({ name: 'arquivo.svg', type: 'image/svg+xml', size: 100 }),
+        /Formato de imagem inválido/
+    );
+    assert.throws(
+        () => service.validarImagem({ name: 'grande.png', type: 'image/png', size: 5 * 1024 * 1024 + 1 }),
+        /no máximo 5 MB/
+    );
 });
 
 test('propaga erro de leitura do servidor com contexto', async () => {

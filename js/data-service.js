@@ -3,6 +3,14 @@
 
     const config = global.APP_CONFIG || {};
     let client = null;
+    const imageBucket = 'failure-portal-images';
+    const imageTypes = Object.freeze({
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'image/gif': 'gif'
+    });
+    const maxImageSize = 5 * 1024 * 1024;
 
     function configurado() {
         return Boolean(
@@ -69,7 +77,11 @@
             taskOuSistema: row.task_or_system || 'N/A',
             descricao: row.description,
             reporterId: row.reporter_id,
-            reporterName: nomeDoPerfil(row.reporter, row.reporter_name)
+            reporterName: nomeDoPerfil(row.reporter, row.reporter_name),
+            anexoPath: row.attachment_path || null,
+            anexoNome: row.attachment_name || null,
+            anexoMime: row.attachment_mime || null,
+            anexoTamanho: row.attachment_size || null
         };
     }
 
@@ -87,7 +99,7 @@
         };
     }
 
-    const failureSelect = 'id,occurred_at,title,cluster,incident,task_or_system,description,reporter_id,reporter:failure_portal_profiles!failure_portal_reports_reporter_id_fkey(display_name)';
+    const failureSelect = 'id,occurred_at,title,cluster,incident,task_or_system,description,attachment_path,attachment_name,attachment_mime,attachment_size,reporter_id,reporter:failure_portal_profiles!failure_portal_reports_reporter_id_fkey(display_name)';
     const ticketSelect = 'id,opened_at,closed_at,ticket_number,reason,reporter_id,reporter:failure_portal_profiles!failure_portal_tickets_reporter_id_fkey(display_name)';
 
     async function sessaoAtual() {
@@ -165,23 +177,91 @@
         };
     }
 
-    async function criarFalha(falha) {
+    function validarImagem(imagem) {
+        if (!imagem) return null;
+        if (!Object.hasOwn(imageTypes, imagem.type)) {
+            throw new Error('Formato de imagem inválido. Use JPG, PNG, WEBP ou GIF.');
+        }
+        if (!Number.isFinite(imagem.size) || imagem.size < 1 || imagem.size > maxImageSize) {
+            throw new Error('A imagem deve ter no máximo 5 MB.');
+        }
+        return imagem;
+    }
+
+    function criarIdentificador() {
+        if (!global.crypto?.randomUUID) {
+            throw new Error('Este navegador não oferece suporte seguro ao envio de imagens. Atualize-o e tente novamente.');
+        }
+        return global.crypto.randomUUID();
+    }
+
+    async function criarFalha(falha, imagem = null) {
+        validarImagem(imagem);
+        const supabaseClient = obterClient();
+        let caminhoAnexo = null;
+        let reportId = null;
+
+        if (imagem) {
+            const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+            propagarErro(userError, 'Falha ao identificar o usuário do anexo');
+            if (!userData?.user?.id) throw new Error('Sessão inválida para enviar a imagem. Entre novamente.');
+
+            reportId = criarIdentificador();
+            caminhoAnexo = `${userData.user.id}/${reportId}/${criarIdentificador()}.${imageTypes[imagem.type]}`;
+            const { error: uploadError } = await supabaseClient.storage
+                .from(imageBucket)
+                .upload(caminhoAnexo, imagem, {
+                    cacheControl: '3600',
+                    contentType: imagem.type,
+                    upsert: false
+                });
+            propagarErro(uploadError, 'Falha ao enviar a imagem');
+        }
+
         const payload = {
+            ...(reportId ? { id: reportId } : {}),
             occurred_at: falha.occurredAt,
             title: falha.titulo,
             cluster: falha.cluster,
             incident: falha.incidente === 'N/A' ? null : falha.incidente,
             task_or_system: falha.taskOuSistema === 'N/A' ? null : falha.taskOuSistema,
-            description: falha.descricao
+            description: falha.descricao,
+            attachment_path: caminhoAnexo,
+            attachment_name: imagem ? String(imagem.name || 'imagem').slice(0, 255) : null,
+            attachment_mime: imagem?.type || null,
+            attachment_size: imagem?.size || null
         };
-        const { data, error } = await obterClient().from('failure_portal_reports').insert(payload).select(failureSelect).single();
+
+        const { data, error } = await supabaseClient.from('failure_portal_reports').insert(payload).select(failureSelect).single();
+        if (error && caminhoAnexo) {
+            await supabaseClient.storage.from(imageBucket).remove([caminhoAnexo]);
+        }
         propagarErro(error, 'Falha ao salvar o registro no servidor');
         return mapearFalha(data);
     }
 
-    async function excluirFalha(id) {
-        const { error } = await obterClient().from('failure_portal_reports').delete().eq('id', id);
+    async function excluirFalha(id, caminhoAnexo = null) {
+        const supabaseClient = obterClient();
+        const { error } = await supabaseClient.from('failure_portal_reports').delete().eq('id', id);
         propagarErro(error, 'Falha ao excluir o registro');
+        if (!caminhoAnexo) return { cleanupWarning: null };
+
+        const { error: cleanupError } = await supabaseClient.storage.from(imageBucket).remove([caminhoAnexo]);
+        return {
+            cleanupWarning: cleanupError
+                ? `Registro excluído, mas a imagem não pôde ser removida: ${cleanupError.message || cleanupError}`
+                : null
+        };
+    }
+
+    async function criarUrlAnexo(caminhoAnexo) {
+        if (!caminhoAnexo) throw new Error('Este registro não possui imagem.');
+        const { data, error } = await obterClient().storage
+            .from(imageBucket)
+            .createSignedUrl(caminhoAnexo, 60);
+        propagarErro(error, 'Falha ao abrir a imagem');
+        if (!data?.signedUrl) throw new Error('O servidor não retornou o endereço da imagem.');
+        return data.signedUrl;
     }
 
     async function criarChamado(chamado) {
@@ -251,6 +331,8 @@
         listarTudo,
         criarFalha,
         excluirFalha,
+        criarUrlAnexo,
+        validarImagem,
         criarChamado,
         encerrarChamado,
         excluirChamado,

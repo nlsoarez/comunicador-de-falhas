@@ -117,7 +117,20 @@
                     <label class="label-moderno" for="descricao-falha">Descrição da falha</label>
                     <div class="textarea-container">
                         <textarea id="descricao-falha" class="textarea-moderno" rows="4" placeholder="Descreva a falha."></textarea>
-                        <i class="fas fa-paperclip anexo-icon" title="Anexar imagem"></i>
+                        <button type="button" id="botao-anexar-imagem" class="anexo-icon" title="Anexar imagem" aria-label="Anexar imagem">
+                            <i class="fas fa-paperclip" aria-hidden="true"></i>
+                        </button>
+                        <input type="file" id="imagem-falha" class="oculto" accept="image/jpeg,image/png,image/webp,image/gif">
+                    </div>
+                    <div id="imagem-preview" class="imagem-preview oculto" aria-live="polite">
+                        <img id="imagem-preview-miniatura" alt="Prévia da imagem selecionada">
+                        <div class="imagem-preview-info">
+                            <strong id="imagem-preview-nome"></strong>
+                            <span id="imagem-preview-tamanho"></span>
+                        </div>
+                        <button type="button" id="remover-imagem" class="btn-remover-imagem" aria-label="Remover imagem" title="Remover imagem">
+                            <i class="fas fa-times" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -243,12 +256,13 @@
                                 <th>Incidente</th>
                                 <th>Task | Rec | Sistema</th>
                                 <th>Reportado por</th>
+                                <th>Imagem</th>
                                 <th id="coluna-acao-historico" class="oculto">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="corpo-historico">
                             <tr>
-                                <td colspan="6" style="text-align: center;">Nenhum registro encontrado</td>
+                                <td colspan="7" style="text-align: center;">Nenhum registro encontrado</td>
                             </tr>
                         </tbody>
                     </table>

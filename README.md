@@ -7,6 +7,7 @@ Portal estático integrado ao Supabase para centralizar falhas e chamados report
 - GitHub Pages (ou qualquer servidor estático) hospeda `index.html`, `css/` e `js/`.
 - Supabase Auth autentica cada usuário por e-mail e senha.
 - Postgres/Supabase armazena `failure_portal_reports`, `failure_portal_tickets` e `failure_portal_profiles`, isoladas por prefixo das tabelas de outros sistemas no mesmo projeto gratuito.
+- Supabase Storage mantém imagens de falhas em bucket privado, limitado a 5 MB e acessível somente por membros autenticados do Comunicador.
 - RLS permite leitura compartilhada somente entre membros do Comunicador, inserção em nome próprio e exclusão somente para administradores; usuários de outros sistemas do mesmo Supabase permanecem isolados.
 - A `service_role`/secret key nunca é enviada ao navegador.
 

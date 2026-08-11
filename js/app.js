@@ -7,6 +7,8 @@ let usuarioLogado = false;
 let sessaoAtual = null;
 let portalRole = null;
 let dadosCarregando = false;
+let imagemSelecionada = null;
+let imagemPreviewUrl = null;
 
 function escaparHtml(valor) {
     return String(valor ?? '')
@@ -19,6 +21,17 @@ function escaparHtml(valor) {
 
 function usuarioEhAdmin() {
     return portalRole === 'admin';
+}
+
+function renderizarCelulaAnexo(falha) {
+    if (!falha.anexoPath) return '<span class="sem-anexo">—</span>';
+    return `
+        <button type="button" class="btn-ver-imagem"
+                data-anexo="${escaparHtml(falha.anexoPath)}"
+                onclick="abrirAnexo(this.dataset.anexo)"
+                title="${escaparHtml(falha.anexoNome || 'Ver imagem')}">
+            <i class="fas fa-image" aria-hidden="true"></i> Ver
+        </button>`;
 }
 
 function exigirSessao() {
@@ -92,7 +105,7 @@ function aplicarFiltros() {
 
     const corpo = document.getElementById('corpo-historico');
     if (filtrados.length === 0) {
-        corpo.innerHTML = `<tr><td colspan="${modoAtual === 'admin' ? 7 : 6}" class="estado-vazio">Nenhum registro encontrado</td></tr>`;
+        corpo.innerHTML = `<tr><td colspan="${modoAtual === 'admin' ? 8 : 7}" class="estado-vazio">Nenhum registro encontrado</td></tr>`;
         return;
     }
 
@@ -104,6 +117,7 @@ function aplicarFiltros() {
             <td>${escaparHtml(falha.incidente || 'N/A')}</td>
             <td>${escaparHtml(falha.taskOuSistema)}</td>
             <td>${escaparHtml(falha.reporterName)}</td>
+            <td>${renderizarCelulaAnexo(falha)}</td>
             ${modoAtual === 'admin' ? `<td><button class="btn-secundario btn-danger" onclick="deletarRegistro('${falha.id}')" title="Excluir registro"><i class="fas fa-trash"></i></button></td>` : ''}
         </tr>
     `).join('');
@@ -120,7 +134,7 @@ function atualizarTabelaHistorico() {
     else colunaAcao.classList.add('oculto');
 
     if (historicoFalhas.length === 0) {
-        corpo.innerHTML = `<tr><td colspan="${modoAtual === 'admin' ? 7 : 6}" class="estado-vazio">Nenhum registro encontrado</td></tr>`;
+        corpo.innerHTML = `<tr><td colspan="${modoAtual === 'admin' ? 8 : 7}" class="estado-vazio">Nenhum registro encontrado</td></tr>`;
         return;
     }
 
@@ -132,6 +146,7 @@ function atualizarTabelaHistorico() {
             <td>${escaparHtml(falha.incidente || 'N/A')}</td>
             <td>${escaparHtml(falha.taskOuSistema)}</td>
             <td>${escaparHtml(falha.reporterName)}</td>
+            <td>${renderizarCelulaAnexo(falha)}</td>
             ${modoAtual === 'admin' ? `<td><button class="btn-secundario btn-danger" onclick="deletarRegistro('${falha.id}')" title="Excluir registro"><i class="fas fa-trash"></i></button></td>` : ''}
         </tr>
     `).join('');
@@ -140,14 +155,32 @@ function atualizarTabelaHistorico() {
 async function deletarRegistro(id) {
     if (confirm('Tem certeza que deseja excluir este registro?')) {
         try {
-            await DataService.excluirFalha(id);
+            const falha = historicoFalhas.find(f => f.id === id);
+            const resultado = await DataService.excluirFalha(id, falha?.anexoPath);
             historicoFalhas = historicoFalhas.filter(f => f.id !== id);
             atualizarTabelaHistorico();
             atualizarFiltros();
-            mostrarToast('Registro excluído do servidor.');
+            mostrarToast(resultado?.cleanupWarning || 'Registro excluído do servidor.');
         } catch (error) {
             mostrarToast(error.message);
         }
+    }
+}
+
+async function abrirAnexo(caminhoAnexo) {
+    const novaJanela = window.open('about:blank', '_blank');
+    if (novaJanela) {
+        novaJanela.opener = null;
+        novaJanela.document.title = 'Carregando imagem';
+        novaJanela.document.body.textContent = 'Carregando imagem…';
+    }
+    try {
+        const url = await DataService.criarUrlAnexo(caminhoAnexo);
+        if (!novaJanela) throw new Error('O navegador bloqueou a nova janela. Permita pop-ups para visualizar a imagem.');
+        novaJanela.location.replace(url);
+    } catch (error) {
+        if (novaJanela) novaJanela.close();
+        mostrarToast(error.message);
     }
 }
 
@@ -524,6 +557,50 @@ document.getElementById('descricao-falha').addEventListener('input', function() 
     }
 });
 
+function formatarTamanhoArquivo(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function limparImagemSelecionada() {
+    if (imagemPreviewUrl) URL.revokeObjectURL(imagemPreviewUrl);
+    imagemSelecionada = null;
+    imagemPreviewUrl = null;
+    document.getElementById('imagem-falha').value = '';
+    document.getElementById('imagem-preview-miniatura').removeAttribute('src');
+    document.getElementById('imagem-preview-nome').textContent = '';
+    document.getElementById('imagem-preview-tamanho').textContent = '';
+    document.getElementById('imagem-preview').classList.add('oculto');
+}
+
+document.getElementById('botao-anexar-imagem').addEventListener('click', function() {
+    if (!exigirSessao()) return;
+    document.getElementById('imagem-falha').click();
+});
+
+document.getElementById('imagem-falha').addEventListener('change', function() {
+    const arquivo = this.files?.[0];
+    if (!arquivo) return;
+    try {
+        DataService.validarImagem(arquivo);
+    } catch (error) {
+        limparImagemSelecionada();
+        mostrarToast(error.message);
+        return;
+    }
+
+    if (imagemPreviewUrl) URL.revokeObjectURL(imagemPreviewUrl);
+    imagemSelecionada = arquivo;
+    imagemPreviewUrl = URL.createObjectURL(arquivo);
+    document.getElementById('imagem-preview-miniatura').src = imagemPreviewUrl;
+    document.getElementById('imagem-preview-nome').textContent = arquivo.name;
+    document.getElementById('imagem-preview-tamanho').textContent = formatarTamanhoArquivo(arquivo.size);
+    document.getElementById('imagem-preview').classList.remove('oculto');
+});
+
+document.getElementById('remover-imagem').addEventListener('click', limparImagemSelecionada);
+
 document.getElementById('botao-registrar-falha').addEventListener('click', async function() {
     if (!exigirSessao()) return;
     let titulo = document.getElementById('titulo-falha').value;
@@ -596,7 +673,7 @@ document.getElementById('botao-registrar-falha').addEventListener('click', async
             incidente: incidente || 'N/A',
             taskOuSistema,
             descricao
-        });
+        }, imagemSelecionada);
         historicoFalhas.unshift(novaFalha);
     } catch (error) {
         mostrarToast(error.message);
@@ -613,6 +690,7 @@ document.getElementById('botao-registrar-falha').addEventListener('click', async
     document.getElementById('task').value = '';
     document.getElementById('sistema-afetado').value = '';
     document.getElementById('descricao-falha').value = '';
+    limparImagemSelecionada();
     document.getElementById('container-aba-dinamica').innerHTML = '';
     document.getElementById('campo-outros-titulo').classList.add('oculto');
     document.getElementById('campo-outros-sistema').classList.add('oculto');
